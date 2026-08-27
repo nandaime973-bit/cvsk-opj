@@ -1,6 +1,6 @@
 import datetime
-import os
 import json
+import os
 import streamlit as st
 import gspread
 from google.oauth2 import service_account
@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Aplikasi Order Penjualan (OPJ)", page_icon="🚀", layout="centered"
 )
 
-# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN JSON SECRETS ---
+# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN JSON MENTAH DI SECRETS ---
 @st.cache_resource
 def get_google_sheets_connection():
     scope = [
@@ -18,8 +18,10 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
-        # Mengambil kredensial langsung dari JSON secrets
-        creds_dict = dict(st.secrets["gcp_service_account"])
+        # Membaca secrets sebagai string JSON mentah untuk menghindari error PEM/TOML
+        json_secret = st.secrets["gcp_service_account_json"]
+        creds_dict = json.loads(json_secret)
+        
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=scope
         )
