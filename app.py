@@ -16,16 +16,18 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
-        # Masukkan kredensial langsung dalam bentuk dictionary Python
+        # Masukkan private key asli kamu di dalam tanda kutip tiga di bawah ini
+        raw_private_key = '''-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC...
+(PASTE SELURUH KODE PRIVATE KEY ANDA DISINI, CUKUP TEKAN ENTER BIASA)
+...
+-----END PRIVATE KEY-----'''
+
         creds_dict = {
             "type": "service_account",
             "project_id": "opj-bot",
-            "private_key_id": "GANTI_DENGAN_PRIVATE_KEY_ID_ANDA_JIKA_PERLU",
-            "private_key": '''-----BEGIN PRIVATE KEY-----
-MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC...
-(PASTE SELURUH KODE PRIVATE KEY ANDA DISINI, JANGAN ADA YANG HILANG)
-...
------END PRIVATE KEY-----''',
+            "private_key_id": "GANTI_DENGAN_PRIVATE_KEY_ID_ANDA",
+            "private_key": raw_private_key.strip(),
             "client_email": "opj-connector@opj-bot.iam.gserviceaccount.com",
             "client_id": "GANTI_DENGAN_CLIENT_ID_ANDA",
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
