@@ -1,4 +1,5 @@
 import datetime
+import json
 import streamlit as st
 import gspread
 from google.oauth2 import service_account
@@ -8,7 +9,7 @@ st.set_page_config(
     page_title="Aplikasi Order Penjualan (OPJ)", page_icon="🚀", layout="centered"
 )
 
-# --- KONEKSI KE GOOGLE SHEETS (METODE BAWAAN STREAMLIT) ---
+# --- KONEKSI KE GOOGLE SHEETS (AMAN DARI ERROR PEM) ---
 @st.cache_resource
 def get_google_sheets_connection():
     scope = [
@@ -16,7 +17,13 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
+        # Mengubah secrets menjadi dictionary secara aman
         creds_dict = dict(st.secrets["gcp_service_account"])
+        
+        # Memperbaiki format \n pada private key secara otomatis jika berbentuk teks biasa
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=scope
         )
@@ -280,7 +287,6 @@ if st.button(
                 pic_code,
                 nama_pelanggan,
                 perusahaan,
-            
                 alamat,
                 no_telp,
                 email,
