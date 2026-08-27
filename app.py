@@ -1,5 +1,6 @@
 import datetime
 import os
+import json
 import streamlit as st
 import gspread
 from google.oauth2 import service_account
@@ -9,7 +10,7 @@ st.set_page_config(
     page_title="Aplikasi Order Penjualan (OPJ)", page_icon="🚀", layout="centered"
 )
 
-# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN STREAMLIT SECRETS ---
+# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN JSON SECRETS ---
 @st.cache_resource
 def get_google_sheets_connection():
     scope = [
@@ -17,12 +18,12 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
+        # Mengambil kredensial langsung dari JSON secrets
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=scope
         )
         client = gspread.authorize(creds)
-        # Nama file spreadsheet utama kamu
         spreadsheet = client.open("Input OPJ")
         return spreadsheet
     except Exception as e:
@@ -37,7 +38,6 @@ next_number = 182  # Disesuaikan dari data terakhir di sheet (181)
 
 if ss:
     try:
-        # 1. Ambil Database Produk untuk pilihan dropdown
         sheet_db = ss.worksheet("Database Produk")
         db_data = sheet_db.get_all_values()
         for i in range(1, len(db_data)):
@@ -59,11 +59,9 @@ if ss:
         st.warning(f"Catatan: Belum bisa membaca sheet 'Database Produk' - {e}")
 
     try:
-        # 2. Cek No OPJ terakhir dari sheet 'Data Pelanggan' untuk penomoran otomatis
         sheet_pelanggan = ss.worksheet("Data Pelanggan")
         all_pelanggan = sheet_pelanggan.get_all_values()
         if len(all_pelanggan) > 1:
-            # Cari baris terakhir yang ada No OPJ-nya di kolom A
             for row in reversed(all_pelanggan):
                 if row and row[0] and "." in row[0]:
                     last_opj = row[0]
