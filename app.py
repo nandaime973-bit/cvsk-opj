@@ -1,3 +1,4 @@
+```python
 import datetime
 import streamlit as st
 import gspread
@@ -5,7 +6,7 @@ from google.oauth2 import service_account
 
 
 # ============================================================
-# KONFIGURASI HALAMAN STREAMLIT
+# KONFIGURASI HALAMAN
 # ============================================================
 
 st.set_page_config(
@@ -28,92 +29,148 @@ def get_google_sheets_connection():
     ]
 
     try:
+
         # ----------------------------------------------------
-        # Ambil credential dari Streamlit Secrets
+        # CEK STREAMLIT SECRETS
         # ----------------------------------------------------
 
         if "gcp_service_account" not in st.secrets:
+
             st.error(
-                "Credential Google belum ditemukan. "
-                "Pastikan file .streamlit/secrets.toml sudah dibuat."
+                "❌ Credential Google belum ditemukan.\n\n"
+                "Jika menggunakan Streamlit Cloud, "
+                "masukkan credential ke:\n"
+                "Settings → Secrets"
             )
+
             return None
 
-        creds_dict = dict(st.secrets["gcp_service_account"])
 
         # ----------------------------------------------------
-        # Perbaiki private key jika tersimpan sebagai \\n
+        # AMBIL CREDENTIAL
+        # ----------------------------------------------------
+
+        creds_dict = dict(
+            st.secrets["gcp_service_account"]
+        )
+
+
+        # ----------------------------------------------------
+        # CEK PRIVATE KEY
         # ----------------------------------------------------
 
         if "private_key" not in creds_dict:
-            st.error("private_key tidak ditemukan di secrets.toml.")
+
+            st.error(
+                "❌ private_key tidak ditemukan "
+                "di Google Secrets."
+            )
+
             return None
 
-        private_key = str(creds_dict["private_key"])
 
-        # Jika private key tersimpan dengan karakter literal \n
-        private_key = private_key.replace("\\n", "\n")
+        private_key = str(
+            creds_dict["private_key"]
+        )
 
-        # Bersihkan whitespace di awal/akhir
-        private_key = private_key.strip()
 
         # ----------------------------------------------------
-        # Validasi sederhana PEM
+        # PERBAIKI NEWLINE PRIVATE KEY
+        #
+        # Mengubah:
+        # \\n
+        #
+        # menjadi:
+        # newline sebenarnya
         # ----------------------------------------------------
 
-        if not private_key.startswith("-----BEGIN PRIVATE KEY-----"):
+        private_key = private_key.replace(
+            "\\n",
+            "\n"
+        ).strip()
+
+
+        # ----------------------------------------------------
+        # VALIDASI FORMAT PEM
+        # ----------------------------------------------------
+
+        if not private_key.startswith(
+            "-----BEGIN PRIVATE KEY-----"
+        ):
+
             st.error(
-                "Format private key tidak valid. "
-                "Private key harus dimulai dengan "
-                "'-----BEGIN PRIVATE KEY-----'."
+                "❌ Format private key tidak valid.\n\n"
+                "Private key harus dimulai dengan:\n"
+                "-----BEGIN PRIVATE KEY-----"
             )
+
             return None
 
-        if not private_key.endswith("-----END PRIVATE KEY-----"):
+
+        if not private_key.endswith(
+            "-----END PRIVATE KEY-----"
+        ):
+
             st.error(
-                "Format private key tidak valid. "
-                "Private key harus diakhiri dengan "
-                "'-----END PRIVATE KEY-----'."
+                "❌ Format private key tidak valid.\n\n"
+                "Private key harus diakhiri dengan:\n"
+                "-----END PRIVATE KEY-----"
             )
+
             return None
+
 
         # Masukkan private key yang sudah diperbaiki
         creds_dict["private_key"] = private_key
 
+
         # ----------------------------------------------------
-        # Buat Google Credentials
+        # BUAT GOOGLE CREDENTIALS
         # ----------------------------------------------------
 
-        creds = service_account.Credentials.from_service_account_info(
-            creds_dict,
-            scopes=scope
+        creds = (
+            service_account
+            .Credentials
+            .from_service_account_info(
+                creds_dict,
+                scopes=scope
+            )
         )
 
-        # ----------------------------------------------------
-        # Authorize GSpread
-        # ----------------------------------------------------
-
-        client = gspread.authorize(creds)
 
         # ----------------------------------------------------
-        # Buka spreadsheet
+        # AUTHORIZE GOOGLE SHEETS
         # ----------------------------------------------------
 
-        spreadsheet = client.open("Input OPJ")
+        client = gspread.authorize(
+            creds
+        )
+
+
+        # ----------------------------------------------------
+        # BUKA SPREADSHEET
+        # ----------------------------------------------------
+
+        spreadsheet = client.open(
+            "Input OPJ"
+        )
+
 
         return spreadsheet
+
 
     except Exception as e:
 
         st.error(
-            f"Gagal terhubung ke Google Sheets: {e}"
+            "❌ Gagal terhubung ke Google Sheets:\n\n"
+            f"{e}"
         )
 
         return None
 
 
 # ============================================================
-# CONNECT
+# CONNECT KE GOOGLE SHEETS
 # ============================================================
 
 ss = get_google_sheets_connection()
@@ -125,27 +182,39 @@ ss = get_google_sheets_connection()
 
 product_list = []
 
+# Nomor awal jika belum ada data
 next_number = 182
 
 
 if ss:
 
-    # --------------------------------------------------------
+    # ========================================================
     # DATABASE PRODUK
-    # --------------------------------------------------------
+    # ========================================================
 
     try:
 
-        sheet_db = ss.worksheet("Database Produk")
+        sheet_db = ss.worksheet(
+            "Database Produk"
+        )
 
         db_data = sheet_db.get_all_values()
 
-        for i in range(1, len(db_data)):
 
-            if len(db_data[i]) > 1 and db_data[i][1]:
+        for i in range(
+            1,
+            len(db_data)
+        ):
+
+            if (
+                len(db_data[i]) > 1
+                and db_data[i][1]
+            ):
 
                 raw_harga = (
-                    str(db_data[i][3])
+                    str(
+                        db_data[i][3]
+                    )
                     .replace(",", "")
                     .replace(".", "")
                     .strip()
@@ -153,56 +222,88 @@ if ss:
                     else "0"
                 )
 
-                harga_val = (
-                    float(raw_harga)
-                    if raw_harga
-                    else 0.0
-                )
+
+                try:
+
+                    harga_val = (
+                        float(raw_harga)
+                        if raw_harga
+                        else 0.0
+                    )
+
+                except ValueError:
+
+                    harga_val = 0.0
+
 
                 product_list.append({
+
                     "id": db_data[i][0],
+
                     "nama": db_data[i][1],
+
                     "spesifikasi": (
                         db_data[i][2]
                         if len(db_data[i]) > 2
                         else ""
                     ),
+
                     "harga": harga_val,
+
                 })
+
 
     except Exception as e:
 
         st.warning(
-            "Catatan: Belum bisa membaca sheet "
-            f"'Database Produk' - {e}"
+            "⚠️ Catatan: Belum bisa membaca "
+            f"sheet 'Database Produk' - {e}"
         )
 
 
-    # --------------------------------------------------------
-    # DATA PELANGGAN
-    # --------------------------------------------------------
+    # ========================================================
+    # CARI NOMOR OPJ TERAKHIR
+    # ========================================================
 
     try:
 
-        sheet_pelanggan = ss.worksheet("Data Pelanggan")
+        sheet_pelanggan = ss.worksheet(
+            "Data Pelanggan"
+        )
 
-        all_pelanggan = sheet_pelanggan.get_all_values()
+        all_pelanggan = (
+            sheet_pelanggan
+            .get_all_values()
+        )
+
 
         if len(all_pelanggan) > 1:
 
-            for row in reversed(all_pelanggan):
+            for row in reversed(
+                all_pelanggan
+            ):
 
-                if row and row[0] and "." in row[0]:
+                if (
+                    row
+                    and row[0]
+                    and "." in row[0]
+                ):
 
                     last_opj = row[0]
 
                     parts = last_opj.split(".")
 
-                    if parts[0].isdigit():
 
-                        next_number = int(parts[0]) + 1
+                    if (
+                        parts[0].isdigit()
+                    ):
+
+                        next_number = (
+                            int(parts[0]) + 1
+                        )
 
                         break
+
 
     except Exception:
 
@@ -210,10 +311,12 @@ if ss:
 
 
 # ============================================================
-# HEADER APLIKASI
+# HEADER
 # ============================================================
 
-st.title("🚀 Aplikasi Order Penjualan (OPJ)")
+st.title(
+    "🚀 Aplikasi Order Penjualan (OPJ)"
+)
 
 st.write(
     "Terhubung langsung dengan Google Sheets "
@@ -225,7 +328,10 @@ st.write(
 # SESSION STATE
 # ============================================================
 
-if "selected_products" not in st.session_state:
+if (
+    "selected_products"
+    not in st.session_state
+):
 
     st.session_state.selected_products = []
 
@@ -234,11 +340,13 @@ if "selected_products" not in st.session_state:
 # FORM UTAMA
 # ============================================================
 
-st.subheader("📝 Form Input / Edit OPJ")
+st.subheader(
+    "📝 Form Input / Edit OPJ"
+)
 
 
 # ============================================================
-# CARI OPJ LAMA
+# PENCARIAN OPJ LAMA
 # ============================================================
 
 with st.container():
@@ -247,7 +355,10 @@ with st.container():
         "🔍 **Cari OPJ Lama (Untuk Edit/Update)**"
     )
 
-    col_search1, col_search2 = st.columns([3, 1])
+
+    col_search1, col_search2 = (
+        st.columns([3, 1])
+    )
 
 
     with col_search1:
@@ -255,7 +366,7 @@ with st.container():
         search_opj_input = st.text_input(
             "Cari No OPJ",
             placeholder="Contoh: 181.RP.2026",
-            label_visibility="collapsed",
+            label_visibility="collapsed"
         )
 
 
@@ -267,7 +378,14 @@ with st.container():
         )
 
 
-    if btn_search and search_opj_input:
+    # ========================================================
+    # PROSES PENCARIAN
+    # ========================================================
+
+    if (
+        btn_search
+        and search_opj_input
+    ):
 
         if ss:
 
@@ -277,11 +395,18 @@ with st.container():
                 # CARI DATA PELANGGAN
                 # ------------------------------------------------
 
-                sh_pelanggan = ss.worksheet(
-                    "Data Pelanggan"
+                sh_pelanggan = (
+                    ss.worksheet(
+                        "Data Pelanggan"
+                    )
                 )
 
-                data_p = sh_pelanggan.get_all_values()
+
+                data_p = (
+                    sh_pelanggan
+                    .get_all_values()
+                )
+
 
                 found_p = False
 
@@ -291,38 +416,78 @@ with st.container():
                     if (
                         row
                         and row[0].strip().lower()
-                        == search_opj_input.strip().lower()
+                        == search_opj_input
+                        .strip()
+                        .lower()
                     ):
 
-                        st.session_state["edit_no_opj"] = row[0]
+                        st.session_state[
+                            "edit_no_opj"
+                        ] = row[0]
 
-                        st.session_state["edit_tanggal"] = (
-                            row[1] if len(row) > 1 else ""
+
+                        st.session_state[
+                            "edit_tanggal"
+                        ] = (
+                            row[1]
+                            if len(row) > 1
+                            else ""
                         )
 
-                        st.session_state["edit_pic"] = (
-                            row[2] if len(row) > 2 else "-- Pilih --"
+
+                        st.session_state[
+                            "edit_pic"
+                        ] = (
+                            row[2]
+                            if len(row) > 2
+                            else "-- Pilih --"
                         )
 
-                        st.session_state["edit_nama"] = (
-                            row[3] if len(row) > 3 else ""
+
+                        st.session_state[
+                            "edit_nama"
+                        ] = (
+                            row[3]
+                            if len(row) > 3
+                            else ""
                         )
 
-                        st.session_state["edit_perusahaan"] = (
-                            row[4] if len(row) > 4 else ""
+
+                        st.session_state[
+                            "edit_perusahaan"
+                        ] = (
+                            row[4]
+                            if len(row) > 4
+                            else ""
                         )
 
-                        st.session_state["edit_alamat"] = (
-                            row[5] if len(row) > 5 else ""
+
+                        st.session_state[
+                            "edit_alamat"
+                        ] = (
+                            row[5]
+                            if len(row) > 5
+                            else ""
                         )
 
-                        st.session_state["edit_telp"] = (
-                            row[6] if len(row) > 6 else ""
+
+                        st.session_state[
+                            "edit_telp"
+                        ] = (
+                            row[6]
+                            if len(row) > 6
+                            else ""
                         )
 
-                        st.session_state["edit_email"] = (
-                            row[7] if len(row) > 7 else ""
+
+                        st.session_state[
+                            "edit_email"
+                        ] = (
+                            row[7]
+                            if len(row) > 7
+                            else ""
                         )
+
 
                         found_p = True
 
@@ -330,14 +495,21 @@ with st.container():
 
 
                 # ------------------------------------------------
-                # CARI DETAIL OPJ
+                # CARI DETAIL PRODUK
                 # ------------------------------------------------
 
-                sh_detail = ss.worksheet(
-                    "Detail OPJ"
+                sh_detail = (
+                    ss.worksheet(
+                        "Detail OPJ"
+                    )
                 )
 
-                data_d = sh_detail.get_all_values()
+
+                data_d = (
+                    sh_detail
+                    .get_all_values()
+                )
+
 
                 loaded_items = []
 
@@ -346,8 +518,12 @@ with st.container():
 
                     if (
                         len(row) > 7
-                        and row[1].strip().lower()
-                        == search_opj_input.strip().lower()
+                        and row[1]
+                        .strip()
+                        .lower()
+                        == search_opj_input
+                        .strip()
+                        .lower()
                     ):
 
                         raw_h = (
@@ -358,52 +534,87 @@ with st.container():
                             else "0"
                         )
 
+
                         try:
-                            harga = float(raw_h)
+
+                            harga = float(
+                                raw_h
+                            )
+
                         except ValueError:
+
                             harga = 0.0
 
 
                         try:
-                            qty = int(row[6])
-                        except (ValueError, TypeError):
+
+                            qty = int(
+                                row[6]
+                            )
+
+                        except (
+                            ValueError,
+                            TypeError
+                        ):
+
                             qty = 1
 
 
                         loaded_items.append({
+
                             "idProduk": row[2],
+
                             "namaProduk": row[3],
+
                             "spesifikasi": row[4],
-                            "stn": row[5] if row[5] else "Unit",
+
+                            "stn": (
+                                row[5]
+                                if row[5]
+                                else "Unit"
+                            ),
+
                             "qty": qty,
+
                             "harga": harga,
+
                         })
 
 
+                # ------------------------------------------------
+                # HASIL PENCARIAN
+                # ------------------------------------------------
+
                 if found_p:
 
-                    st.session_state.selected_products = (
-                        loaded_items
-                    )
+                    st.session_state[
+                        "selected_products"
+                    ] = loaded_items
+
 
                     st.success(
                         f"Data OPJ {search_opj_input} "
-                        "berhasil dimuat! Silakan cek di bawah."
+                        "berhasil dimuat! "
+                        "Silakan cek di bawah."
                     )
 
+
                     st.rerun()
+
 
                 else:
 
                     st.warning(
-                        f"Nomor OPJ '{search_opj_input}' "
+                        f"Nomor OPJ "
+                        f"'{search_opj_input}' "
                         "tidak ditemukan."
                     )
+
 
             except Exception as e:
 
                 st.error(
-                    f"Gagal mencari data: {e}"
+                    f"❌ Gagal mencari data: {e}"
                 )
 
 
@@ -446,11 +657,17 @@ def_email = st.session_state.get(
 
 
 # ============================================================
-# DATA UTAMA OPJ
+# DATA OPJ
 # ============================================================
 
-col1, col2, col3 = st.columns([1, 2, 2])
+col1, col2, col3 = (
+    st.columns([1, 2, 2])
+)
 
+
+# ============================================================
+# PIC
+# ============================================================
 
 with col1:
 
@@ -460,16 +677,23 @@ with col1:
         "SG"
     ]
 
+
     pic_code = st.selectbox(
         "PIC Code",
         pic_options,
         index=(
-            pic_options.index(def_pic)
+            pic_options.index(
+                def_pic
+            )
             if def_pic in pic_options
             else 0
-        ),
+        )
     )
 
+
+# ============================================================
+# NOMOR OPJ
+# ============================================================
 
 with col2:
 
@@ -479,20 +703,33 @@ with col2:
 
 
     if (
-        "edit_no_opj" in st.session_state
-        and st.session_state["edit_no_opj"]
+        "edit_no_opj"
+        in st.session_state
+        and st.session_state[
+            "edit_no_opj"
+        ]
     ):
 
         no_opj_auto = (
-            st.session_state["edit_no_opj"]
+            st.session_state[
+                "edit_no_opj"
+            ]
         )
 
     else:
 
         no_opj_auto = (
-            f"{next_number}.{pic_code}.{current_year}"
+
+            f"{next_number}."
+            f"{pic_code}."
+            f"{current_year}"
+
             if pic_code != "-- Pilih --"
-            else f"{next_number}.---.{current_year}"
+
+            else
+
+            f"{next_number}.---."
+            f"{current_year}"
         )
 
 
@@ -503,19 +740,59 @@ with col2:
     )
 
 
+# ============================================================
+# TANGGAL
+# ============================================================
+
 with col3:
 
-    tanggal_opj = st.date_input(
-        "Tanggal",
+    tanggal_default = (
         datetime.date.today()
     )
 
 
+    # Jika sedang edit dan ada tanggal
+    edit_tanggal = (
+        st.session_state.get(
+            "edit_tanggal",
+            ""
+        )
+    )
+
+
+    if edit_tanggal:
+
+        try:
+
+            tanggal_default = (
+                datetime.datetime
+                .strptime(
+                    edit_tanggal,
+                    "%Y-%m-%d"
+                )
+                .date()
+            )
+
+        except ValueError:
+
+            tanggal_default = (
+                datetime.date.today()
+            )
+
+
+    tanggal_opj = st.date_input(
+        "Tanggal",
+        tanggal_default
+    )
+
+
 # ============================================================
-# DATA PELANGGAN
+# PELANGGAN
 # ============================================================
 
-col_pel1, col_pel2 = st.columns(2)
+col_pel1, col_pel2 = (
+    st.columns(2)
+)
 
 
 with col_pel1:
@@ -547,7 +824,9 @@ alamat = st.text_area(
 # KONTAK
 # ============================================================
 
-col_kontak1, col_kontak2 = st.columns(2)
+col_kontak1, col_kontak2 = (
+    st.columns(2)
+)
 
 
 with col_kontak1:
@@ -569,12 +848,14 @@ with col_kontak2:
 
 
 # ============================================================
-# DETAIL PRODUK
+# PRODUK
 # ============================================================
 
 st.markdown("---")
 
-st.subheader("🛒 Detail Produk Order")
+st.subheader(
+    "🛒 Detail Produk Order"
+)
 
 
 product_placeholder = (
@@ -585,7 +866,10 @@ product_placeholder = (
 selected_product_name = st.selectbox(
     "Cari & Tambah Produk",
     [product_placeholder]
-    + [p["nama"] for p in product_list],
+    + [
+        p["nama"]
+        for p in product_list
+    ]
 )
 
 
@@ -593,15 +877,21 @@ selected_product_name = st.selectbox(
 # TAMBAH PRODUK
 # ============================================================
 
-if st.button("➕ Tambah Produk ke List"):
+if st.button(
+    "➕ Tambah Produk ke List"
+):
 
-    if selected_product_name != product_placeholder:
+    if (
+        selected_product_name
+        != product_placeholder
+    ):
 
         prod_obj = next(
             (
                 p
                 for p in product_list
-                if p["nama"] == selected_product_name
+                if p["nama"]
+                == selected_product_name
             ),
             None
         )
@@ -609,35 +899,49 @@ if st.button("➕ Tambah Produk ke List"):
 
         if prod_obj:
 
-            st.session_state.selected_products.append({
+            st.session_state[
+                "selected_products"
+            ].append({
 
-                "idProduk": prod_obj["id"],
+                "idProduk":
+                    prod_obj["id"],
 
-                "namaProduk": prod_obj["nama"],
+                "namaProduk":
+                    prod_obj["nama"],
 
-                "spesifikasi": prod_obj["spesifikasi"],
+                "spesifikasi":
+                    prod_obj["spesifikasi"],
 
-                "stn": "Unit",
+                "stn":
+                    "Unit",
 
-                "qty": 1,
+                "qty":
+                    1,
 
-                "harga": prod_obj["harga"],
+                "harga":
+                    prod_obj["harga"],
+
             })
+
 
             st.rerun()
 
 
 # ============================================================
-# LIST PRODUK
+# TAMPILKAN PRODUK
 # ============================================================
 
-if st.session_state.selected_products:
+if st.session_state[
+    "selected_products"
+]:
 
     st.markdown("---")
 
 
     for idx, item in enumerate(
-        st.session_state.selected_products
+        st.session_state[
+            "selected_products"
+        ]
     ):
 
         with st.container():
@@ -650,7 +954,8 @@ if st.session_state.selected_products:
             st.caption(
                 item["spesifikasi"]
                 if item["spesifikasi"]
-                else "Tidak ada spesifikasi khusus"
+                else
+                "Tidak ada spesifikasi khusus"
             )
 
 
@@ -659,40 +964,67 @@ if st.session_state.selected_products:
             )
 
 
+            # ------------------------------------------------
+            # SATUAN
+            # ------------------------------------------------
+
             with cols[0]:
 
-                st.session_state.selected_products[idx][
-                    "stn"
-                ] = st.text_input(
-                    "Stn",
-                    item["stn"],
-                    key=f"stn_{idx}"
+                st.session_state[
+                    "selected_products"
+                ][idx]["stn"] = (
+                    st.text_input(
+                        "Stn",
+                        item["stn"],
+                        key=f"stn_{idx}"
+                    )
                 )
 
+
+            # ------------------------------------------------
+            # QTY
+            # ------------------------------------------------
 
             with cols[1]:
 
-                st.session_state.selected_products[idx][
-                    "qty"
-                ] = st.number_input(
-                    "Qty",
-                    min_value=1,
-                    value=int(item["qty"]),
-                    key=f"qty_{idx}"
+                st.session_state[
+                    "selected_products"
+                ][idx]["qty"] = (
+                    st.number_input(
+                        "Qty",
+                        min_value=1,
+                        value=int(
+                            item["qty"]
+                        ),
+                        key=f"qty_{idx}"
+                    )
                 )
 
+
+            # ------------------------------------------------
+            # HARGA
+            # ------------------------------------------------
 
             with cols[2]:
 
-                st.session_state.selected_products[idx][
-                    "harga"
-                ] = st.number_input(
-                    "Harga",
-                    value=float(item["harga"]),
-                    key=f"harga_{idx}",
-                    step=1000.0
+                st.session_state[
+                    "selected_products"
+                ][idx]["harga"] = (
+                    st.number_input(
+                        "Harga",
+                        min_value=0.0,
+                        value=float(
+                            item["harga"]
+                        ),
+                        step=1000.0,
+                        key=f"harga_{idx}"
+                    )
                 )
 
+
+            # ------------------------------------------------
+            # DELETE
+            # ------------------------------------------------
 
             with cols[3]:
 
@@ -705,9 +1037,10 @@ if st.session_state.selected_products:
                     help="Hapus produk"
                 ):
 
-                    st.session_state.selected_products.pop(
-                        idx
-                    )
+                    st.session_state[
+                        "selected_products"
+                    ].pop(idx)
+
 
                     st.rerun()
 
@@ -716,7 +1049,7 @@ if st.session_state.selected_products:
 
 
 # ============================================================
-# SIMPAN / UPDATE
+# SIMPAN / UPDATE OPJ
 # ============================================================
 
 if st.button(
@@ -726,27 +1059,38 @@ if st.button(
 ):
 
     # --------------------------------------------------------
-    # VALIDASI
+    # VALIDASI PIC
     # --------------------------------------------------------
 
     if pic_code == "-- Pilih --":
 
         st.error(
-            "PIC Code belum dipilih!"
+            "❌ PIC Code belum dipilih!"
         )
 
 
-    elif not st.session_state.selected_products:
+    # --------------------------------------------------------
+    # VALIDASI PRODUK
+    # --------------------------------------------------------
+
+    elif not st.session_state[
+        "selected_products"
+    ]:
 
         st.error(
-            "Pilih minimal 1 produk!"
+            "❌ Pilih minimal 1 produk!"
         )
 
+
+    # --------------------------------------------------------
+    # VALIDASI GOOGLE SHEETS
+    # --------------------------------------------------------
 
     elif not ss:
 
         st.error(
-            "Koneksi Google Sheets belum terhubung!"
+            "❌ Koneksi Google Sheets "
+            "belum terhubung!"
         )
 
 
@@ -754,34 +1098,49 @@ if st.button(
 
         try:
 
-            # ------------------------------------------------
+            # =================================================
             # WORKSHEET
-            # ------------------------------------------------
+            # =================================================
 
-            sheet_pelanggan = ss.worksheet(
-                "Data Pelanggan"
+            sheet_pelanggan = (
+                ss.worksheet(
+                    "Data Pelanggan"
+                )
             )
 
-            sheet_detail = ss.worksheet(
-                "Detail OPJ"
+
+            sheet_detail = (
+                ss.worksheet(
+                    "Detail OPJ"
+                )
             )
 
 
-            # ------------------------------------------------
-            # CARI BARIS OPJ YANG AKAN DIUPDATE
-            # ------------------------------------------------
+            # =================================================
+            # CARI OPJ LAMA
+            # =================================================
 
-            all_p = sheet_pelanggan.get_all_values()
+            all_p = (
+                sheet_pelanggan
+                .get_all_values()
+            )
+
 
             row_index_to_update = None
 
 
-            for idx_row, row in enumerate(all_p):
+            for idx_row, row in enumerate(
+                all_p
+            ):
 
                 if (
                     row
-                    and row[0].strip().lower()
-                    == no_opj_auto.strip().lower()
+                    and row[0]
+                    .strip()
+                    .lower()
+                    == no_opj_auto
+                    .strip()
+                    .lower()
                 ):
 
                     row_index_to_update = (
@@ -791,9 +1150,9 @@ if st.button(
                     break
 
 
-            # ------------------------------------------------
+            # =================================================
             # DATA PELANGGAN
-            # ------------------------------------------------
+            # =================================================
 
             new_pelanggan_row = [
 
@@ -812,12 +1171,13 @@ if st.button(
                 no_telp,
 
                 email,
+
             ]
 
 
-            # ------------------------------------------------
-            # UPDATE / INSERT
-            # ------------------------------------------------
+            # =================================================
+            # UPDATE ATAU INSERT
+            # =================================================
 
             if row_index_to_update:
 
@@ -833,21 +1193,31 @@ if st.button(
                 )
 
 
-            # ------------------------------------------------
+            # =================================================
             # HAPUS DETAIL LAMA
-            # ------------------------------------------------
+            # =================================================
 
-            all_d = sheet_detail.get_all_values()
+            all_d = (
+                sheet_detail
+                .get_all_values()
+            )
+
 
             rows_to_delete = []
 
 
-            for idx_d, row_d in enumerate(all_d):
+            for idx_d, row_d in enumerate(
+                all_d
+            ):
 
                 if (
                     len(row_d) > 1
-                    and row_d[1].strip().lower()
-                    == no_opj_auto.strip().lower()
+                    and row_d[1]
+                    .strip()
+                    .lower()
+                    == no_opj_auto
+                    .strip()
+                    .lower()
                 ):
 
                     rows_to_delete.append(
@@ -855,7 +1225,7 @@ if st.button(
                     )
 
 
-            # Hapus dari bawah supaya index tidak berubah
+            # Hapus dari bawah
             for r_idx in sorted(
                 rows_to_delete,
                 reverse=True
@@ -866,11 +1236,15 @@ if st.button(
                 )
 
 
-            # ------------------------------------------------
-            # SIMPAN DETAIL BARU
-            # ------------------------------------------------
+            # =================================================
+            # SIMPAN DETAIL PRODUK
+            # =================================================
 
-            for item in st.session_state.selected_products:
+            for item in (
+                st.session_state[
+                    "selected_products"
+                ]
+            ):
 
                 jumlah = (
                     float(item["qty"])
@@ -897,6 +1271,7 @@ if st.button(
                     item["harga"],
 
                     jumlah,
+
                 ]
 
 
@@ -905,27 +1280,110 @@ if st.button(
                 )
 
 
-            # ------------------------------------------------
+            # =================================================
             # RESET FORM
-            # ------------------------------------------------
+            # =================================================
 
-            if "edit_no_opj" in st.session_state:
+            if (
+                "edit_no_opj"
+                in st.session_state
+            ):
 
-                del st.session_state["edit_no_opj"]
+                del st.session_state[
+                    "edit_no_opj"
+                ]
 
 
-            st.session_state.selected_products = []
+            if (
+                "edit_tanggal"
+                in st.session_state
+            ):
 
+                del st.session_state[
+                    "edit_tanggal"
+                ]
+
+
+            if (
+                "edit_pic"
+                in st.session_state
+            ):
+
+                del st.session_state[
+                    "edit_pic"
+                ]
+
+
+            if (
+                "edit_nama"
+                in st.session_state
+            ):
+
+                del st.session_state[
+                    "edit_nama"
+                ]
+
+
+            if (
+                "edit_perusahaan"
+                in st.session_state
+            ):
+
+                del st.session_state[
+                    "edit_perusahaan"
+                ]
+
+
+            if (
+                "edit_alamat"
+                in st.session_state
+            ):
+
+                del st.session_state[
+                    "edit_alamat"
+                ]
+
+
+            if (
+                "edit_telp"
+                in st.session_state
+            ):
+
+                del st.session_state[
+                    "edit_telp"
+                ]
+
+
+            if (
+                "edit_email"
+                in st.session_state
+            ):
+
+                del st.session_state[
+                    "edit_email"
+                ]
+
+
+            st.session_state[
+                "selected_products"
+            ] = []
+
+
+            # =================================================
+            # SUCCESS
+            # =================================================
 
             st.success(
-                f"Data OPJ {no_opj_auto} "
+                f"🎉 Data OPJ {no_opj_auto} "
                 "berhasil disimpan/diperbarui "
-                "ke Google Sheets! 🎉"
+                "ke Google Sheets!"
             )
 
 
         except Exception as e:
 
             st.error(
-                f"Terjadi kesalahan saat menyimpan data: {e}"
+                "❌ Terjadi kesalahan saat "
+                f"menyimpan data:\n\n{e}"
             )
+```
