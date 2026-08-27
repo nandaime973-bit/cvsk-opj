@@ -55,7 +55,7 @@ def get_google_sheets_connection():
 
 
         # ----------------------------------------------------
-        # CEK & PERBAIKI PRIVATE KEY
+        # CEK & PERBAIKI PRIVATE KEY (REVISI TOTAL)
         # ----------------------------------------------------
 
         if "private_key" not in creds_dict:
@@ -73,14 +73,21 @@ def get_google_sheets_connection():
         )
 
 
-        # Tangani berbagai bentuk newline di secrets (aman untuk \n teks maupun enter asli)
+        # Ubah \n teks menjadi newline asli jika ada
         if "\\n" in private_key:
             private_key = private_key.replace(
                 "\\n",
                 "\n"
             )
 
-        private_key = private_key.strip()
+        # Bersihkan spasi berlebih, pecah per baris, dan gabungkan kembali secara rapi
+        lines = [
+            line.strip()
+            for line in private_key.splitlines()
+            if line.strip()
+        ]
+        
+        private_key = "\n".join(lines) + "\n"
 
 
         # ----------------------------------------------------
@@ -101,7 +108,7 @@ def get_google_sheets_connection():
 
 
         if not private_key.endswith(
-            "-----END PRIVATE KEY-----"
+            "-----END PRIVATE KEY-----\n"
         ):
 
             st.error(
