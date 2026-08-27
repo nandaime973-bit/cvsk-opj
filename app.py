@@ -1,4 +1,5 @@
 import datetime
+import json
 import streamlit as st
 import gspread
 from google.oauth2 import service_account
@@ -8,7 +9,7 @@ st.set_page_config(
     page_title="Aplikasi Order Penjualan (OPJ)", page_icon="🚀", layout="centered"
 )
 
-# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN FILE JSON LOKAL ---
+# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN SECRETS AMAN ---
 @st.cache_resource
 def get_google_sheets_connection():
     scope = [
@@ -16,9 +17,15 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
-        # Membaca langsung file credentials.json yang ada di folder GitHub
-        creds = service_account.Credentials.from_service_account_file(
-            "credentials.json", scopes=scope
+        # Mengambil dictionary secrets dan membersihkan format private_key
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        
+        # Pastikan baris baru (\n) terbaca dengan benar oleh protokol JWT Google
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, scopes=scope
         )
         client = gspread.authorize(creds)
         spreadsheet = client.open("Input OPJ")
