@@ -23,8 +23,8 @@ st.set_page_config(
 def get_google_sheets_connection():
 
     scope = [
-        "[https://www.googleapis.com/auth/spreadsheets](https://www.googleapis.com/auth/spreadsheets)",
-        "[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
     ]
 
     try:
@@ -55,7 +55,7 @@ def get_google_sheets_connection():
 
 
         # ----------------------------------------------------
-        # CEK PRIVATE KEY
+        # CEK & PERBAIKI PRIVATE KEY
         # ----------------------------------------------------
 
         if "private_key" not in creds_dict:
@@ -73,14 +73,14 @@ def get_google_sheets_connection():
         )
 
 
-        # ----------------------------------------------------
-        # PERBAIKI NEWLINE PRIVATE KEY
-        # ----------------------------------------------------
+        # Tangani berbagai bentuk newline di secrets (aman untuk \n teks maupun enter asli)
+        if "\\n" in private_key:
+            private_key = private_key.replace(
+                "\\n",
+                "\n"
+            )
 
-        private_key = private_key.replace(
-            "\\n",
-            "\n"
-        ).strip()
+        private_key = private_key.strip()
 
 
         # ----------------------------------------------------
