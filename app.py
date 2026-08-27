@@ -16,7 +16,6 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
-        # Menggunakan koneksi native gspread/streamlit connections atau service account dict biasa
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=scope
@@ -281,6 +280,7 @@ if st.button(
                 pic_code,
                 nama_pelanggan,
                 perusahaan,
+            
                 alamat,
                 no_telp,
                 email,
@@ -304,7 +304,7 @@ if st.button(
                     rows_to_delete.append(idx_d + 1)
 
             for r_idx in sorted(rows_to_delete, reverse=True):
-            def_pelanggan = sheet_detail.delete_rows(r_idx) # type: ignore
+                sheet_detail.delete_rows(r_idx)
 
             for item in st.session_state.selected_products:
                 jumlah = float(item["qty"]) * float(item["harga"])
