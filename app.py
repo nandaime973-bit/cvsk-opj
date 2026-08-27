@@ -1,6 +1,4 @@
 import datetime
-import json
-import os
 import streamlit as st
 import gspread
 from google.oauth2 import service_account
@@ -10,7 +8,7 @@ st.set_page_config(
     page_title="Aplikasi Order Penjualan (OPJ)", page_icon="🚀", layout="centered"
 )
 
-# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN JSON MENTAH DI SECRETS ---
+# --- KONEKSI KE GOOGLE SHEETS (METODE BAWAAN STREAMLIT) ---
 @st.cache_resource
 def get_google_sheets_connection():
     scope = [
@@ -18,10 +16,8 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
-        # Membaca secrets sebagai string JSON mentah untuk menghindari error PEM/TOML
-        json_secret = st.secrets["gcp_service_account_json"]
-        creds_dict = json.loads(json_secret)
-        
+        # Menggunakan koneksi native gspread/streamlit connections atau service account dict biasa
+        creds_dict = dict(st.secrets["gcp_service_account"])
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=scope
         )
@@ -308,7 +304,7 @@ if st.button(
                     rows_to_delete.append(idx_d + 1)
 
             for r_idx in sorted(rows_to_delete, reverse=True):
-                sheet_detail.delete_rows(r_idx)
+            def_pelanggan = sheet_detail.delete_rows(r_idx) # type: ignore
 
             for item in st.session_state.selected_products:
                 jumlah = float(item["qty"]) * float(item["harga"])
