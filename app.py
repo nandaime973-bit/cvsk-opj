@@ -3,21 +3,24 @@ from datetime import datetime
 import os
 import json
 import streamlit as st
-from google.oauth2.service_account import Credentials
+from google.oauth2 import service_account
 import gspread
 
-# --- KONEKSI GOOGLE SHEETS MENGGUNAKAN STREAMLIT SECRETS ---
+# --- KONEKSI GOOGLE SHEETS MENGGUNAKAN FILE JSON LOKAL ---
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
 
+SERVICE_ACCOUNT_FILE = "service_account.json"
+
 try:
-  # Mengambil kredensial aman dari secrets.toml atau Streamlit Cloud Secrets
-  creds_dict = dict(st.secrets["gcp_service_account"])
-  creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+  # Membaca file JSON service account langsung dari folder repository
+  creds = service_account.Credentials.from_service_account_file(
+      SERVICE_ACCOUNT_FILE, scopes=scope
+  )
   gc = gspread.authorize(creds)
-  # Koneksi berhasil, variabel 'gc' siap digunakan di bawah untuk memanggil sheet
+  # Koneksi berhasil, variabel 'gc' siap digunakan untuk memanggil Google Sheets
 except Exception as e:
   st.error(f"Gagal terhubung ke Google Sheets: {e}")
 
