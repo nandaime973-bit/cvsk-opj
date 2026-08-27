@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Aplikasi Order Penjualan (OPJ)", page_icon="🚀", layout="centered"
 )
 
-# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN FILE CREDENTIALS.JSON ---
+# --- KONEKSI LANGSUNG MENGGUNAKAN DICTIONARY INTERNAL (ANTI GAGAL) ---
 @st.cache_resource
 def get_google_sheets_connection():
     scope = [
@@ -16,9 +16,27 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
-        # Membaca langsung file credentials.json di folder repository
-        creds = service_account.Credentials.from_service_account_file(
-            "credentials.json", scopes=scope
+        # Masukkan kredensial langsung dalam bentuk dictionary Python
+        creds_dict = {
+            "type": "service_account",
+            "project_id": "opj-bot",
+            "private_key_id": "GANTI_DENGAN_PRIVATE_KEY_ID_ANDA_JIKA_PERLU",
+            "private_key": '''-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC...
+(PASTE SELURUH KODE PRIVATE KEY ANDA DISINI, JANGAN ADA YANG HILANG)
+...
+-----END PRIVATE KEY-----''',
+            "client_email": "opj-connector@opj-bot.iam.gserviceaccount.com",
+            "client_id": "GANTI_DENGAN_CLIENT_ID_ANDA",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/opj-connector%40opj-bot.iam.gserviceaccount.com",
+            "universe_domain": "googleapis.com"
+        }
+
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, scopes=scope
         )
         client = gspread.authorize(creds)
         spreadsheet = client.open("Input OPJ")
@@ -280,52 +298,4 @@ if st.button(
                 pic_code,
                 nama_pelanggan,
                 perusahaan,
-                alamat,
-                no_telp,
-                email,
             ]
-
-            if row_index_to_update:
-                sheet_pelanggan.update(
-                    f"A{row_index_to_update}:H{row_index_to_update}",
-                    [new_pelanggan_row],
-                )
-            else:
-                sheet_pelanggan.append_row(new_pelanggan_row)
-
-            all_d = sheet_detail.get_all_values()
-            rows_to_delete = []
-            for idx_d, row_d in enumerate(all_d):
-                if (
-                    len(row_d) > 1
-                    and row_d[1].strip().lower() == no_opj_auto.strip().lower()
-                ):
-                    rows_to_delete.append(idx_d + 1)
-
-            for r_idx in sorted(rows_to_delete, reverse=True):
-                sheet_detail.delete_rows(r_idx)
-
-            for item in st.session_state.selected_products:
-                jumlah = float(item["qty"]) * float(item["harga"])
-                detail_row = [
-                    str(tanggal_opj),
-                    no_opj_auto,
-                    item["idProduk"],
-                    item["namaProduk"],
-                    item["spesifikasi"],
-                    item["stn"],
-                    item["qty"],
-                    item["harga"],
-                    jumlah,
-                ]
-                sheet_detail.append_row(detail_row)
-
-            if "edit_no_opj" in st.session_state:
-                del st.session_state["edit_no_opj"]
-            st.session_state.selected_products = []
-
-            st.success(
-                f"Data OPJ {no_opj_auto} berhasil disimpan/diperbarui ke Google Sheets! 🎉"
-            )
-        except Exception as e:
-            st.error(f"Terjadi kesalahan saat menyimpan data: {e}")
