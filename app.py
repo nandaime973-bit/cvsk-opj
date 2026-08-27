@@ -17,12 +17,12 @@ def get_google_sheets_connection():
         "https://www.googleapis.com/auth/drive",
     ]
     try:
-        # Mengambil dictionary kredensial dari st.secrets
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=scope
         )
         client = gspread.authorize(creds)
+        # Nama file spreadsheet utama kamu
         spreadsheet = client.open("Input OPJ")
         return spreadsheet
     except Exception as e:
@@ -33,7 +33,7 @@ ss = get_google_sheets_connection()
 
 # Ambil data produk awal & hitung nomor OPJ otomatis
 product_list = []
-next_number = 165  # Default awal jika sheet kosong
+next_number = 182  # Disesuaikan dari data terakhir di sheet (181)
 
 if ss:
     try:
@@ -59,15 +59,18 @@ if ss:
         st.warning(f"Catatan: Belum bisa membaca sheet 'Database Produk' - {e}")
 
     try:
-        # 2. Cek No OPJ terakhir dari Data Pelanggan untuk penomoran otomatis
+        # 2. Cek No OPJ terakhir dari sheet 'Data Pelanggan' untuk penomoran otomatis
         sheet_pelanggan = ss.worksheet("Data Pelanggan")
         all_pelanggan = sheet_pelanggan.get_all_values()
         if len(all_pelanggan) > 1:
-            last_row = all_pelanggan[-1]
-            last_opj = last_row[0]
-            parts = last_opj.split(".")
-            if parts[0].isdigit():
-                next_number = int(parts[0]) + 1
+            # Cari baris terakhir yang ada No OPJ-nya di kolom A
+            for row in reversed(all_pelanggan):
+                if row and row[0] and "." in row[0]:
+                    last_opj = row[0]
+                    parts = last_opj.split(".")
+                    if parts[0].isdigit():
+                        next_number = int(parts[0]) + 1
+                        break
     except Exception as e:
         pass
 
@@ -75,7 +78,6 @@ if ss:
 st.title("🚀 Aplikasi Order Penjualan (OPJ)")
 st.write("Terhubung langsung dengan Google Sheets **Input OPJ**.")
 
-# Inisialisasi session state produk terpilih
 if "selected_products" not in st.session_state:
     st.session_state.selected_products = []
 
@@ -98,7 +100,6 @@ with st.container():
     if btn_search and search_opj_input:
         if ss:
             try:
-                # 1. Cari data di Data Pelanggan
                 sh_pelanggan = ss.worksheet("Data Pelanggan")
                 data_p = sh_pelanggan.get_all_values()
                 found_p = False
@@ -115,7 +116,6 @@ with st.container():
                         found_p = True
                         break
 
-                # 2. Cari detail produk terkait di Detail OPJ
                 sh_detail = ss.worksheet("Detail OPJ")
                 data_d = sh_detail.get_all_values()
                 loaded_items = []
@@ -147,7 +147,6 @@ with st.container():
 
 st.markdown("---")
 
-# Ambil state jika sedang mode edit
 def_pic = st.session_state.get("edit_pic", "-- Pilih --")
 def_nama = st.session_state.get("edit_nama", "")
 def_perusahaan = st.session_state.get("edit_perusahaan", "")
@@ -201,23 +200,8 @@ with col_kontak2:
     email = st.text_input("Email", value=def_email, placeholder="email@domain.com")
 
 st.markdown("---")
-st.subheader("💰 Biaya Tambahan & Pengiriman")
-col_b1, col_b2, col_b3 = st.columns(3)
-with col_b1:
-    biaya_kirim = st.number_input("Biaya Kirim (IDR)", min_value=0, value=0, step=1000)
-with col_b2:
-    biaya_instalasi = st.number_input(
-        "Biaya Pasang/Instalasi (IDR)", min_value=0, value=0, step=1000
-    )
-with col_b3:
-    delivery_time = st.text_input(
-        "Delivery Time", value="H+60 hari kerja setelah syarat dipenuhi"
-    )
-
-st.markdown("---")
 st.subheader("🛒 Detail Produk Order")
 
-# Fitur Pilih Produk dari Database Sheets
 selected_product_name = st.selectbox(
     "Cari & Tambah Produk",
     ["Ketik atau pilih nama produk untuk mencari..."]
@@ -240,7 +224,6 @@ if st.button("➕ Tambah Produk ke List"):
             })
             st.rerun()
 
-# Tabel Produk yang dipilih
 if st.session_state.selected_products:
     st.markdown("---")
     for idx, item in enumerate(st.session_state.selected_products):
@@ -269,13 +252,12 @@ if st.session_state.selected_products:
                     step=1000.0,
                 )
             with cols[3]:
-                st.write("")  # spacing
+                st.write("")
                 if st.button("❌", key=f"del_{idx}", help="Hapus produk"):
                     st.session_state.selected_products.pop(idx)
                     st.rerun()
             st.markdown("---")
 
-# Tombol Simpan / Update OPJ
 if st.button(
     "💾 SIMPAN / UPDATE OPJ", type="primary", use_container_width=True
 ):
@@ -290,12 +272,11 @@ if st.button(
             sheet_pelanggan = ss.worksheet("Data Pelanggan")
             sheet_detail = ss.worksheet("Detail OPJ")
 
-            # Cek apakah nomor OPJ sudah ada di sheet Data Pelanggan (untuk mode Update)
             all_p = sheet_pelanggan.get_all_values()
             row_index_to_update = None
             for idx_row, row in enumerate(all_p):
                 if row and row[0].strip().lower() == no_opj_auto.strip().lower():
-                    row_index_to_update = idx_row + 1  # Baris gspread mulai dari 1
+                    row_index_to_update = idx_row + 1
                     break
 
             new_pelanggan_row = [
@@ -317,7 +298,6 @@ if st.button(
             else:
                 sheet_pelanggan.append_row(new_pelanggan_row)
 
-            # Untuk detail produk, hapus baris lama yang punya No OPJ sama (jika ada), lalu masukkan yang baru
             all_d = sheet_detail.get_all_values()
             rows_to_delete = []
             for idx_d, row_d in enumerate(all_d):
@@ -330,7 +310,6 @@ if st.button(
             for r_idx in sorted(rows_to_delete, reverse=True):
                 sheet_detail.delete_rows(r_idx)
 
-            # Masukkan detail produk yang baru/diperbarui
             for item in st.session_state.selected_products:
                 jumlah = float(item["qty"]) * float(item["harga"])
                 detail_row = [
@@ -346,13 +325,12 @@ if st.button(
                 ]
                 sheet_detail.append_row(detail_row)
 
-            # Bersihkan session edit
             if "edit_no_opj" in st.session_state:
                 del st.session_state["edit_no_opj"]
             st.session_state.selected_products = []
 
             st.success(
-                f"Data OPJ {no_opj_auto} berhasil disimpan/diperbarui ke Google Sheets 'Input OPJ'! 🎉"
+                f"Data OPJ {no_opj_auto} berhasil disimpan/diperbarui ke Google Sheets! 🎉"
             )
         except Exception as e:
             st.error(f"Terjadi kesalahan saat menyimpan data: {e}")
