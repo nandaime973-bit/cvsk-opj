@@ -1,5 +1,4 @@
 import datetime
-import json
 import streamlit as st
 import gspread
 from google.oauth2 import service_account
@@ -17,7 +16,7 @@ st.set_page_config(
 
 
 # ============================================================
-# KONEKSI GOOGLE SHEETS
+# KONEKSI GOOGLE SHEETS (MENGGUNAKAN STREAMLIT SECRETS)
 # ============================================================
 
 @st.cache_resource
@@ -29,93 +28,10 @@ def get_google_sheets_connection():
     ]
 
     try:
+        # Ambil langsung dari Streamlit Secrets yang aman
+        creds_dict = dict(st.secrets["gcp_service_account"])
 
-        # ----------------------------------------------------
-        # BACA FILE JSON CREDENTIALS
-        # ----------------------------------------------------
-        # Pastikan nama file sesuai dengan yang ada di folder projectmu
-        # (misal: 'credentials.json' atau 'creds.json')
-        
-        file_name = "credentials.json" 
-
-        with open(file_name, "r") as f:
-            creds_dict = json.load(f)
-
-
-        # ----------------------------------------------------
-        # PERBAIKI FORMAT PRIVATE KEY (REVISI TOTAL)
-        # ----------------------------------------------------
-
-        if "private_key" not in creds_dict:
-
-            st.error(
-                "❌ private_key tidak ditemukan "
-                "di dalam file JSON."
-            )
-
-            return None
-
-
-        private_key = str(
-            creds_dict["private_key"]
-        )
-
-
-        # Ubah \n teks menjadi newline asli jika ada
-        if "\\n" in private_key:
-            private_key = private_key.replace(
-                "\\n",
-                "\n"
-            )
-
-        # Bersihkan spasi berlebih, pecah per baris, dan gabungkan kembali secara rapi
-        lines = [
-            line.strip()
-            for line in private_key.splitlines()
-            if line.strip()
-        ]
-        
-        private_key = "\n".join(lines) + "\n"
-
-
-        # ----------------------------------------------------
-        # VALIDASI FORMAT PEM
-        # ----------------------------------------------------
-
-        if not private_key.startswith(
-            "-----BEGIN PRIVATE KEY-----"
-        ):
-
-            st.error(
-                "❌ Format private key tidak valid.\n\n"
-                "Private key harus dimulai dengan:\n"
-                "-----BEGIN PRIVATE KEY-----"
-            )
-
-            return None
-
-
-        if not private_key.endswith(
-            "-----END PRIVATE KEY-----\n"
-        ):
-
-            st.error(
-                "❌ Format private key tidak valid.\n\n"
-                "Private key harus diakhiri dengan:\n"
-                "-----END PRIVATE KEY-----"
-            )
-
-            return None
-
-
-        # Masukkan private key yang sudah diperbaiki ke dictionary
-        creds_dict["private_key"] = private_key
-
-
-        # ----------------------------------------------------
-        # BUAT GOOGLE CREDENTIALS DARI INFO DICTIONARY
-        # ----------------------------------------------------
-
+        # Buat Google Credentials dari info dictionary secrets
         creds = (
             service_account
             .Credentials
@@ -125,27 +41,17 @@ def get_google_sheets_connection():
             )
         )
 
-
-        # ----------------------------------------------------
-        # AUTHORIZE GOOGLE SHEETS
-        # ----------------------------------------------------
-
+        # Authorize Google Sheets
         client = gspread.authorize(
             creds
         )
 
-
-        # ----------------------------------------------------
-        # BUKA SPREADSHEET
-        # ----------------------------------------------------
-
+        # Buka Spreadsheet
         spreadsheet = client.open(
             "Input OPJ"
         )
 
-
         return spreadsheet
-
 
     except Exception as e:
 
