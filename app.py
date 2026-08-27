@@ -9,18 +9,18 @@ st.set_page_config(
     page_title="Aplikasi Order Penjualan (OPJ)", page_icon="🚀", layout="centered"
 )
 
-# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN FILE JSON LOKAL ---
+# --- KONEKSI KE GOOGLE SHEETS MENGGUNAKAN STREAMLIT SECRETS ---
 @st.cache_resource
 def get_google_sheets_connection():
     scope = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive",
     ]
-    SERVICE_ACCOUNT_FILE = "service_account.json"
-    
     try:
-        creds = service_account.Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=scope
+        # Mengambil dictionary kredensial dari st.secrets
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, scopes=scope
         )
         client = gspread.authorize(creds)
         spreadsheet = client.open("Input OPJ")
