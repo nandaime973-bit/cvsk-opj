@@ -298,4 +298,52 @@ if st.button(
                 pic_code,
                 nama_pelanggan,
                 perusahaan,
+                alamat,
+                no_telp,
+                email,
             ]
+
+            if row_index_to_update:
+                sheet_pelanggan.update(
+                    f"A{row_index_to_update}:H{row_index_to_update}",
+                    [new_pelanggan_row],
+                )
+            else:
+                sheet_pelanggan.append_row(new_pelanggan_row)
+
+            all_d = sheet_detail.get_all_values()
+            rows_to_delete = []
+            for idx_d, row_d in enumerate(all_d):
+                if (
+                    len(row_d) > 1
+                    and row_d[1].strip().lower() == no_opj_auto.strip().lower()
+                ):
+                    rows_to_delete.append(idx_d + 1)
+
+            for r_idx in sorted(rows_to_delete, reverse=True):
+                sheet_detail.delete_rows(r_idx)
+
+            for item in st.session_state.selected_products:
+                jumlah = float(item["qty"]) * float(item["harga"])
+                detail_row = [
+                    str(tanggal_opj),
+                    no_opj_auto,
+                    item["idProduk"],
+                    item["namaProduk"],
+                    item["spesifikasi"],
+                    item["stn"],
+                    item["qty"],
+                    item["harga"],
+                    jumlah,
+                ]
+                sheet_detail.append_row(detail_row)
+
+            if "edit_no_opj" in st.session_state:
+                del st.session_state["edit_no_opj"]
+            st.session_state.selected_products = []
+
+            st.success(
+                f"Data OPJ {no_opj_auto} berhasil disimpan/diperbarui ke Google Sheets! 🎉"
+            )
+        except Exception as e:
+            st.error(f"Terjadi kesalahan saat menyimpan data: {e}")
